@@ -6,9 +6,11 @@
   (function setBuildId() {
     var el = $("buildId");
     if (!el) return;
+    var b = window.__SPACETIME_BUILD__ || {};
     var eng = (window.SpacetimeEnsemble && SpacetimeEnsemble.ENGINE_VERSION) || "n/a";
-    var schema = (window.SpacetimeEnsemble && SpacetimeEnsemble.SCHEMA_VERSION) || "n/a";
-    el.textContent = "UI 0.3.0 · engine " + eng + " · " + schema;
+    var schema = (window.SpacetimeEnsemble && SpacetimeEnsemble.SCHEMA_VERSION) || b.schema || "n/a";
+    var sha = b.git_sha ? (" · " + b.git_sha) : "";
+    el.textContent = "UI " + (b.ui || "0.3.0") + " · py 0.3.0 · " + eng + " · " + schema + sha;
   })();
 
   function readParams() {
@@ -185,7 +187,9 @@
       renderManifest();
       $("ensMeta").textContent = [
         "source: browser (preview — not Python)",
-        "geometries=" + result.n_geometries + " seed=" + cfg.masterSeed,
+        "class: fixed_geometry_sampling_ensemble",
+        "runs=" + result.n_geometries + " (same flat geometry; start-sampling only)",
+        "seed=" + cfg.masterSeed,
         "algorithm=" + result.config.algorithm_version,
       ].join("\n");
     } catch (e) {
