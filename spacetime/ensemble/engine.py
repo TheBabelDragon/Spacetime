@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from dataclasses import dataclass, field
@@ -45,6 +46,7 @@ class GeometryRecord:
     def to_dict(self) -> dict:
         return {
             "geometry_index": self.geometry_index,
+            "run_index": self.geometry_index,
             "seed": self.seed,
             "n0": self.n0,
             "n2": self.n2,
@@ -69,18 +71,22 @@ class EnsembleResult:
         return _json_safe({
             "format": "spacetime-ensemble-manifest/v1",
             "source": "python",
+            "experiment_class": "fixed_geometry_sampling_ensemble",
             "config": self.config.to_dict(),
             "notes": self.notes,
             "sigma": self.sigma,
             "P_ensemble": self.P_ensemble,
             "Ds_ensemble": self.Ds_ensemble,
             "geometries": [g.to_dict() for g in self.geometries],
+            "runs": [g.to_dict() for g in self.geometries],
             "n_geometries": len(self.geometries),
+            "n_runs": len(self.geometries),
         })
 
-    def canonical_fingerprint(self) -> str:
+    def canonical_payload(self) -> str:
         payload = {
             "config": self.config.to_dict(),
+            "experiment_class": "fixed_geometry_sampling_ensemble",
             "sigma": self.sigma,
             "P_ensemble": self.P_ensemble,
             "Ds_ensemble": {
@@ -91,9 +97,9 @@ class EnsembleResult:
                 )
                 if k in self.Ds_ensemble
             },
-            "geometries": [
+            "runs": [
                 {
-                    "geometry_index": g.geometry_index,
+                    "run_index": g.geometry_index,
                     "seed": g.seed,
                     "n0": g.n0,
                     "n2": g.n2,
@@ -107,6 +113,9 @@ class EnsembleResult:
             ],
         }
         return json.dumps(_json_safe(payload), sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+    def canonical_fingerprint(self) -> str:
+        return hashlib.sha256(self.canonical_payload().encode("utf-8")).hexdigest()
 
 
 def _edges_from_tri(tri: CDT2DTriangulation) -> List[tuple[int, int]]:
@@ -145,21 +154,21 @@ def run_ensemble(cfg: EnsembleConfig) -> EnsembleResult:
     if not geos:
         raise RuntimeError("no geometries produced")
     sigma = geos[0].sigma
-    p_series = [g.P for g in geos]
-    ds_series = [list(g.Ds) for g in geos]
     notes = [
         "source=python authoritative engine",
+        "experiment_class=fixed_geometry_sampling_ensemble",
         "graph=primal (not dual)",
-        "geometry_v0.3=flat_cylinder_or_torus (combinatorially identical for fixed N,T,periodic)",
-        "ensemble_independence=per_geometry diffusion start streams derived from master_seed",
-        "ci95=normal_approx 1.96*stderr across geometries",
+        "geometry=flat_cylinder_or_torus (identical combinatorics for fixed N,T,periodic)",
+        "variability=diffusion_start_sampling_across_runs — NOT independent triangulations",
+        "ci95=normal_approx_1.96_stderr across sampling runs (null when n_valid < 2)",
         "no continuum-limit claims",
+        "no geometry-to-geometry ensemble uncertainty claimed",
     ]
     return EnsembleResult(
         config=cfg,
         geometries=geos,
         sigma=sigma,
-        P_ensemble=aggregate_series(p_series),
-        Ds_ensemble=aggregate_series(ds_series),
+        P_ensemble=aggregate_series([g.P for g in geos]),
+        Ds_ensemble=aggregate_series([list(g.Ds) for g in geos]),
         notes=notes,
     )
