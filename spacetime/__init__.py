@@ -1,9 +1,9 @@
 """Spacetime — Quantum Geometry & Gravity Research Engine.
 
-v0.1: dimension-independent discrete geometry core + 2D CDT model.
+v0.3: CDT ensemble engine (reproducible multi-geometry experiments).
 """
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 
 from spacetime.geometry.complex import SimplicialComplex
 from spacetime.geometry.simplex import OrientedSimplex, VertexId

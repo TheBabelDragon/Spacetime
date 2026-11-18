@@ -1,7 +1,17 @@
 (function () {
   "use strict";
-  const state = { geom: null, diffusion: null, manifest: null };
+  const state = { geom: null, diffusion: null, manifest: null, ensemble: null, ensCancel: false };
   const $ = (id) => document.getElementById(id);
+
+  (function setBuildId() {
+    var el = $("buildId");
+    if (!el) return;
+    var b = window.__SPACETIME_BUILD__ || {};
+    var eng = (window.SpacetimeEnsemble && SpacetimeEnsemble.ENGINE_VERSION) || "n/a";
+    var schema = (window.SpacetimeEnsemble && SpacetimeEnsemble.SCHEMA_VERSION) || b.schema || "n/a";
+    var sha = b.git_sha ? (" · " + b.git_sha) : "";
+    el.textContent = "UI " + (b.ui || "0.3.0") + " · py 0.3.0 · " + eng + " · " + schema + sha;
+  })();
 
   function readParams() {
     return {
@@ -16,10 +26,7 @@
     try {
       state.geom = SpacetimeCDT.buildFlatCDT(p.nSpatial, p.nTime, p.periodicTime);
       state.manifest = SpacetimeCDT.toManifest(state.geom, { note: "Browser-side flat CDT construction" });
-      renderGeometry();
-      renderManifest();
-      updateGeomMeta();
-      runValidationTable();
+      renderGeometry(); renderManifest(); updateGeomMeta(); runValidationTable();
     } catch (err) {
       $("geomMeta").textContent = "Error: " + err.message;
     }
@@ -41,17 +48,11 @@
   function updateGeomMeta() {
     if (!state.geom) { $("geomMeta").textContent = "No geometry."; return; }
     const g = state.geom;
-    const nSL = g.edges.filter((e) => e.kind === "spacelike").length;
-    const nTL = g.edges.filter((e) => e.kind === "timelike").length;
     $("geomMeta").textContent = [
-      "source: " + g.source + " (browser demonstration)",
+      "source: " + g.source + " (browser)",
       "topology: " + g.topology,
-      "N=" + g.config.n_spatial + "  T=" + g.config.n_time + "  periodic_time=" + g.config.periodic_time,
-      "N₀=" + g.n0 + "  N₂=" + g.n2 + "  edges=" + g.edges.length,
-      "spacelike_edges=" + nSL + "  timelike_edges=" + nTL,
-      "expected N₂: " + (g.config.periodic_time
-        ? "2·N·T = " + (2 * g.config.n_spatial * g.config.n_time)
-        : "2·N·(T-1) = " + (2 * g.config.n_spatial * (g.config.n_time - 1))),
+      "N=" + g.config.n_spatial + " T=" + g.config.n_time + " periodic=" + g.config.periodic_time,
+      "N0=" + g.n0 + " N2=" + g.n2,
     ].join("\n");
   }
 
@@ -63,23 +64,8 @@
     const seed = parseInt($("diffSeed").value, 10) || 0;
     const adj = SpacetimeCDT.primalGraph(state.geom);
     state.diffusion = SpacetimeDiffusion.randomWalkReturnProbabilities(adj, sigmaMax, nStarts, seed);
-    const { Ds } = SpacetimeDiffusion.spectralDimension(state.diffusion.sigma, state.diffusion.P);
-    const finite = Ds.filter((x) => Number.isFinite(x));
-    const meanDs = finite.length ? finite.reduce((a, b) => a + b, 0) / finite.length : NaN;
     SpacetimeDiffusion.drawSpectral($("spectralCanvas"), state.diffusion);
-    $("spectralMeta").textContent = [
-      "source: browser · graph: primal (not dual)",
-      "σ_max=" + sigmaMax + "  starts=" + state.diffusion.n_starts + "  seed=" + seed,
-      "⟨Ds⟩ diagnostic = " + (Number.isFinite(meanDs) ? meanDs.toFixed(3) : "n/a"),
-      "Note: finite-size RW estimates; not continuum spectral dimension.",
-    ].join("\n");
-    if (state.manifest) {
-      state.manifest.spectral_demo = {
-        source: "browser", graph: "primal", sigma_max: sigmaMax,
-        mean_Ds_diagnostic: meanDs, seed,
-      };
-      renderManifest();
-    }
+    $("spectralMeta").textContent = "source: browser · primal · σ_max=" + sigmaMax;
   }
 
   function renderManifest() {
@@ -100,21 +86,12 @@
     reader.onload = function () {
       try {
         const data = JSON.parse(reader.result);
-        const source = data.source || "unknown";
         if (data.config && data.config.n_spatial) {
           $("nSpatial").value = data.config.n_spatial;
           $("nTime").value = data.config.n_time;
           $("periodicTime").checked = !!data.config.periodic_time;
-          state.geom = SpacetimeCDT.buildFlatCDT(
-            data.config.n_spatial, data.config.n_time, !!data.config.periodic_time
-          );
-          state.geom.source = source === "python" ? "python-import-geometry-rebuild" : source;
-          state.manifest = Object.assign({}, data, {
-            imported_at: new Date().toISOString(),
-            import_note: source === "python"
-              ? "Geometry rebuilt in browser from config; not a bit-identical Python snapshot."
-              : "Imported manifest",
-          });
+          state.geom = SpacetimeCDT.buildFlatCDT(data.config.n_spatial, data.config.n_time, !!data.config.periodic_time);
+          state.manifest = data;
           renderGeometry(); updateGeomMeta(); renderManifest(); runValidationTable();
         } else {
           state.manifest = data; renderManifest();
@@ -130,32 +107,94 @@
     const tbody = $("vectorTable").querySelector("tbody");
     tbody.innerHTML = "";
     const vectors = [
-      { name: "Cylinder N=4,T=3 → N₂", expected: 16, actual: () => SpacetimeCDT.buildFlatCDT(4, 3, false).n2 },
-      { name: "Torus N=4,T=3 → N₂", expected: 24, actual: () => SpacetimeCDT.buildFlatCDT(4, 3, true).n2 },
-      { name: "Cylinder N=3,T=2 → N₂", expected: 6, actual: () => SpacetimeCDT.buildFlatCDT(3, 2, false).n2 },
-      { name: "Torus−Cylinder ΔN₂ (N=5,T=4)", expected: 10, actual: () => {
-          return SpacetimeCDT.buildFlatCDT(5, 4, true).n2 - SpacetimeCDT.buildFlatCDT(5, 4, false).n2;
-        }},
+      { name: "Cylinder N=4,T=3", expected: 16, actual: function () { return SpacetimeCDT.buildFlatCDT(4, 3, false).n2; } },
+      { name: "Torus N=4,T=3", expected: 24, actual: function () { return SpacetimeCDT.buildFlatCDT(4, 3, true).n2; } },
+      { name: "Cylinder N=3,T=2", expected: 6, actual: function () { return SpacetimeCDT.buildFlatCDT(3, 2, false).n2; } },
     ];
-    const lines = ["Shared test vectors (browser vs convention):"];
-    for (const v of vectors) {
-      let actual, match;
-      try { actual = v.actual(); match = actual === v.expected; }
-      catch (e) { actual = e.message; match = false; }
-      const tr = document.createElement("tr");
+    vectors.forEach(function (v) {
+      var actual = v.actual();
+      var match = actual === v.expected;
+      var tr = document.createElement("tr");
       tr.innerHTML = "<td>" + v.name + "</td><td>" + v.expected + "</td><td>" + actual +
         "</td><td class=\"" + (match ? "match-ok" : "match-fail") + "\">" + (match ? "yes" : "no") + "</td>";
       tbody.appendChild(tr);
-      lines.push(v.name + ": expected=" + v.expected + " actual=" + actual + " match=" + match);
-    }
-    $("validationReport").textContent = lines.join("\n");
+    });
+    $("validationReport").textContent = "Shared N2 test vectors";
   }
 
-  function loadSample() {
-    $("nSpatial").value = 5; $("nTime").value = 3; $("periodicTime").checked = false;
-    buildGeometry();
-    $("sigmaMax").value = 30; $("nStarts").value = 20; $("diffSeed").value = 7;
-    runDiffusion();
+  function drawEnsemble(result) {
+    var canvas = $("ensembleCanvas");
+    if (!canvas || !result) return;
+    var ctx = canvas.getContext("2d");
+    var w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    var dsSigma = result.geometries[0] ? result.geometries[0].Ds_sigma : [];
+    var mean = result.Ds_ensemble.mean;
+    var lo = result.Ds_ensemble.ci95_low;
+    var hi = result.Ds_ensemble.ci95_high;
+    if (!dsSigma.length) return;
+    var pad = { l: 48, r: 16, t: 20, b: 36 };
+    var maxS = Math.max.apply(null, dsSigma);
+    var vals = mean.concat(lo).concat(hi).filter(function (x) { return x !== null && isFinite(x); });
+    var ymin = Math.min.apply(null, vals.concat([0]));
+    var ymax = Math.max.apply(null, vals.concat([2]));
+    function xMap(s) { return pad.l + (w - pad.l - pad.r) * Math.log(s) / Math.log(maxS); }
+    function yMap(v) { return pad.t + (h - pad.t - pad.b) * (1 - (v - ymin) / (ymax - ymin || 1)); }
+    ctx.strokeStyle = "#1e2d45";
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h - pad.b); ctx.lineTo(w - pad.r, h - pad.b); ctx.stroke();
+    ctx.fillStyle = "rgba(167,139,250,0.15)";
+    ctx.beginPath();
+    var started = false;
+    for (var i = 0; i < dsSigma.length; i++) {
+      if (hi[i] == null || !isFinite(hi[i])) continue;
+      var x = xMap(dsSigma[i]), y = yMap(hi[i]);
+      if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+    }
+    for (var j = dsSigma.length - 1; j >= 0; j--) {
+      if (lo[j] == null || !isFinite(lo[j])) continue;
+      ctx.lineTo(xMap(dsSigma[j]), yMap(lo[j]));
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#a78bfa"; ctx.lineWidth = 1.5; ctx.beginPath();
+    started = false;
+    for (var k = 0; k < dsSigma.length; k++) {
+      if (mean[k] == null || !isFinite(mean[k])) continue;
+      var xx = xMap(dsSigma[k]), yy = yMap(mean[k]);
+      if (!started) { ctx.moveTo(xx, yy); started = true; } else ctx.lineTo(xx, yy);
+    }
+    ctx.stroke();
+  }
+
+  function runEnsembleUI() {
+    state.ensCancel = false;
+    var cfg = {
+      nSpatial: Math.max(3, parseInt($("nSpatial").value, 10) || 4),
+      nTime: Math.max(2, parseInt($("nTime").value, 10) || 3),
+      periodicTime: $("periodicTime").checked,
+      nGeometries: Math.max(1, parseInt($("ensNGeom").value, 10) || 10),
+      masterSeed: parseInt($("ensSeed").value, 10) || 0,
+      sigmaMax: Math.max(2, parseInt($("ensSigma").value, 10) || 20),
+      nStarts: Math.max(1, parseInt($("ensStarts").value, 10) || 8),
+    };
+    $("ensMeta").textContent = "Running…";
+    try {
+      var result = SpacetimeEnsemble.runEnsemble(cfg, function (i, n) {
+        $("ensMeta").textContent = "Progress " + i + " / " + n;
+      }, function () { return state.ensCancel; });
+      state.ensemble = result;
+      state.manifest = result;
+      drawEnsemble(result);
+      renderManifest();
+      $("ensMeta").textContent = [
+        "source: browser (preview — not Python)",
+        "class: fixed_geometry_sampling_ensemble",
+        "runs=" + result.n_geometries + " (same flat geometry; start-sampling only)",
+        "seed=" + cfg.masterSeed,
+        "algorithm=" + result.config.algorithm_version,
+      ].join("\n");
+    } catch (e) {
+      $("ensMeta").textContent = "Error: " + e.message;
+    }
   }
 
   $("btnBuild").addEventListener("click", buildGeometry);
@@ -172,9 +211,25 @@
   $("fileImport").addEventListener("change", function (e) {
     if (e.target.files && e.target.files[0]) importJSON(e.target.files[0]);
   });
-  $("btnLoadSample").addEventListener("click", loadSample);
+  $("btnLoadSample").addEventListener("click", function () {
+    $("nSpatial").value = 5; $("nTime").value = 3; buildGeometry();
+  });
   ["showSpacelike", "showTimelike", "showTriangles", "showLabels"].forEach(function (id) {
-    $(id).addEventListener("change", renderGeometry);
+    if ($(id)) $(id).addEventListener("change", renderGeometry);
+  });
+  if ($("btnEnsemble")) $("btnEnsemble").addEventListener("click", runEnsembleUI);
+  if ($("btnCancelEns")) $("btnCancelEns").addEventListener("click", function () { state.ensCancel = true; });
+  if ($("btnExportEnsJson")) $("btnExportEnsJson").addEventListener("click", function () {
+    if (!state.ensemble) runEnsembleUI();
+    if (state.ensemble) downloadJSON(state.ensemble, "ensemble-manifest.json");
+  });
+  if ($("btnExportEnsCsv")) $("btnExportEnsCsv").addEventListener("click", function () {
+    if (!state.ensemble) runEnsembleUI();
+    if (!state.ensemble) return;
+    var blob = new Blob([SpacetimeEnsemble.csvP(state.ensemble) + "\n\n" + SpacetimeEnsemble.csvDs(state.ensemble)], { type: "text/csv" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href = url; a.download = "ensemble-curves.csv"; a.click();
+    URL.revokeObjectURL(url);
   });
 
   buildGeometry();

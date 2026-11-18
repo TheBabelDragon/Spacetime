@@ -4,13 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Spacetime Observatory — Babel Dragon</title>
-  <meta name="description" content="Browser research interface for discrete geometry and 2D Causal Dynamical Triangulations. Demonstrations are browser-side; Python engine results are separate." />
+  <meta name="description" content="Browser research interface for discrete geometry and 2D CDT. Browser previews are not Python results." />
   <link rel="stylesheet" href="css/observatory.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%230b1220' stroke='%2356d1ff' stroke-width='2'/><path d='M8 20 L16 8 L24 20 Z' fill='none' stroke='%23a78bfa' stroke-width='1.5'/></svg>" />
+  <script>window.__SPACETIME_BUILD__ = { ui: "0.3.0", schema: "ensemble/v1" };</script>
 </head>
 <body>
   <div class="bg-grid" aria-hidden="true"></div>
-
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true"></span>
@@ -22,38 +21,27 @@
     <nav class="topnav">
       <a href="#geometry">Geometry</a>
       <a href="#spectral">Spectral</a>
+      <a href="#ensemble">Ensemble</a>
       <a href="#experiments">Experiments</a>
       <a href="#validation">Validation</a>
       <a href="https://github.com/TheBabelDragon/Spacetime" target="_blank" rel="noopener">GitHub</a>
     </nav>
+    <div class="build-id" id="buildId" title="Build identity">UI 0.3.0</div>
   </header>
-
   <main>
     <section class="banner notice" role="note">
       <strong>Browser-side demonstration.</strong>
-      Calculations on this page run in your browser using shared mathematical conventions with the Python research engine.
-      They are <em>not</em> substitutes for the validated Python Monte Carlo / spectral pipeline.
-      Python experiment outputs, when imported, are labeled distinctly from browser-generated results.
+      Calculations here are previews. Python (<code>spacetime.ensemble</code>) is authoritative for published claims.
+      v0.3 ensemble class: <code>fixed_geometry_sampling_ensemble</code> (start-sampling only; not independent triangulations).
     </section>
-
     <section id="geometry" class="panel">
-      <div class="panel-head">
-        <h2>2D CDT Triangulation Explorer</h2>
-        <span class="badge">geometry · causal structure</span>
-      </div>
+      <div class="panel-head"><h2>2D CDT Triangulation Explorer</h2><span class="badge">geometry</span></div>
       <div class="layout-2">
         <div class="controls card">
           <h3>Parameters</h3>
-          <label>Spatial vertices N (S¹)
-            <input type="number" id="nSpatial" min="3" max="24" value="6" />
-          </label>
-          <label>Time slices T
-            <input type="number" id="nTime" min="2" max="16" value="4" />
-          </label>
-          <label class="checkbox">
-            <input type="checkbox" id="periodicTime" />
-            Periodic time (torus S¹×S¹)
-          </label>
+          <label>Spatial vertices N<input type="number" id="nSpatial" min="3" max="24" value="6" /></label>
+          <label>Time slices T<input type="number" id="nTime" min="2" max="16" value="4" /></label>
+          <label class="checkbox"><input type="checkbox" id="periodicTime" /> Periodic time (torus)</label>
           <div class="btn-row">
             <button type="button" id="btnBuild" class="primary">Build geometry</button>
             <button type="button" id="btnExport" class="ghost">Export JSON</button>
@@ -69,102 +57,81 @@
             <label class="checkbox"><input type="checkbox" id="showTriangles" checked /> Triangles</label>
             <label class="checkbox"><input type="checkbox" id="showLabels" /> Labels</label>
           </div>
-          <canvas id="cdtCanvas" width="720" height="440" aria-label="CDT triangulation canvas"></canvas>
-          <p class="caption">Cylinder: open in time, spatial S¹. Torus: periodic time. Edges colored by causal type.</p>
+          <canvas id="cdtCanvas" width="720" height="440"></canvas>
         </div>
       </div>
     </section>
-
     <section id="spectral" class="panel">
-      <div class="panel-head">
-        <h2>Spectral Dimension (browser diffusion)</h2>
-        <span class="badge demo">browser-side · primal graph</span>
-      </div>
+      <div class="panel-head"><h2>Spectral Dimension</h2><span class="badge demo">browser · primal</span></div>
       <div class="layout-2">
         <div class="controls card">
-          <h3>Diffusion controls</h3>
-          <label>Max diffusion time σ<sub>max</sub>
-            <input type="number" id="sigmaMax" min="2" max="200" value="40" />
-          </label>
-          <label>Samples per σ (return probability average)
-            <input type="number" id="nStarts" min="1" max="200" value="32" />
-          </label>
-          <label>Random seed
-            <input type="number" id="diffSeed" min="0" value="42" />
-          </label>
-          <div class="btn-row">
-            <button type="button" id="btnDiffuse" class="primary">Run diffusion</button>
-          </div>
+          <label>σ<sub>max</sub><input type="number" id="sigmaMax" min="2" max="200" value="40" /></label>
+          <label>Starts<input type="number" id="nStarts" min="1" max="200" value="32" /></label>
+          <label>Seed<input type="number" id="diffSeed" min="0" value="42" /></label>
+          <div class="btn-row"><button type="button" id="btnDiffuse" class="primary">Run diffusion</button></div>
           <p class="formula">D<sub>s</sub>(σ) = −2 d ln P(σ) / d ln σ</p>
-          <p class="caption">Primal graph: vertices of the triangulation, edges = 1-simplices. Dual diffusion is not mixed into this plot.</p>
           <div id="spectralMeta" class="meta-block"></div>
         </div>
+        <div class="viz card"><canvas id="spectralCanvas" width="720" height="360"></canvas></div>
+      </div>
+    </section>
+    <section id="ensemble" class="panel">
+      <div class="panel-head"><h2>Fixed-Geometry Sampling Ensemble</h2><span class="badge demo">browser preview · python authoritative</span></div>
+      <div class="layout-2">
+        <div class="controls card">
+          <h3>Ensemble configuration</h3>
+          <label>Sampling runs<input type="number" id="ensNGeom" min="1" max="200" value="20" /></label>
+          <label>Master seed<input type="number" id="ensSeed" min="0" value="2026" /></label>
+          <label>σ<sub>max</sub><input type="number" id="ensSigma" min="2" max="100" value="20" /></label>
+          <label>Starts per run<input type="number" id="ensStarts" min="1" max="64" value="8" /></label>
+          <p class="caption">Uses N, T, periodic from Geometry. Flat CDT only — same triangulation every run; independent start seeds. Not independent geometries.</p>
+          <div class="btn-row">
+            <button type="button" id="btnEnsemble" class="primary">Run ensemble</button>
+            <button type="button" id="btnCancelEns" class="ghost">Cancel</button>
+            <button type="button" id="btnExportEnsJson" class="ghost">JSON</button>
+            <button type="button" id="btnExportEnsCsv" class="ghost">CSV</button>
+          </div>
+          <div id="ensMeta" class="meta-block">No ensemble run yet.</div>
+        </div>
         <div class="viz card">
-          <canvas id="spectralCanvas" width="720" height="360" aria-label="Spectral dimension plot"></canvas>
-          <p class="caption">Return probability P(σ) and spectral dimension estimate. Fit windows and uncertainty are diagnostic only.</p>
+          <canvas id="ensembleCanvas" width="720" height="360"></canvas>
+          <p class="caption">Fixed-geometry sampling ensemble: mean D<sub>s</sub> ± 95% band (start-sampling variability only; not independent triangulations).</p>
         </div>
       </div>
     </section>
-
     <section id="experiments" class="panel">
-      <div class="panel-head">
-        <h2>Experiment Manifests</h2>
-        <span class="badge">import · export · compare</span>
-      </div>
+      <div class="panel-head"><h2>Experiment Manifests</h2></div>
       <div class="layout-2">
         <div class="card">
-          <h3>Current session</h3>
-          <pre id="manifestView" class="code-block">No experiment loaded. Build a geometry or import a manifest.</pre>
+          <pre id="manifestView" class="code-block">No experiment loaded.</pre>
           <div class="btn-row">
             <button type="button" id="btnManifestExport" class="ghost">Download manifest</button>
-            <button type="button" id="btnLoadSample" class="ghost">Load sample (browser demo)</button>
+            <button type="button" id="btnLoadSample" class="ghost">Load sample</button>
           </div>
         </div>
         <div class="card">
-          <h3>Source labeling</h3>
           <ul class="legend-list">
-            <li><span class="pill browser">browser</span> Synthetic / interactive demonstration on this page</li>
-            <li><span class="pill python">python</span> Output from the Spacetime Python research engine</li>
-            <li><span class="pill unknown">unknown</span> Unlabeled import — treat as unverified</li>
+            <li><span class="pill browser">browser</span> Interactive demonstration</li>
+            <li><span class="pill python">python</span> Authoritative engine output</li>
+            <li><span class="pill unknown">unknown</span> Unlabeled import</li>
           </ul>
-          <p class="caption">No hardcoded success metrics. Validation status is read from the manifest fields when present.</p>
         </div>
       </div>
     </section>
-
     <section id="validation" class="panel">
-      <div class="panel-head">
-        <h2>Validation &amp; Test Vectors</h2>
-        <span class="badge">shared conventions</span>
-      </div>
+      <div class="panel-head"><h2>Validation</h2></div>
       <div class="card">
         <div id="validationReport" class="meta-block"></div>
-        <table class="data-table" id="vectorTable">
-          <thead>
-            <tr>
-              <th>Vector</th>
-              <th>Expected</th>
-              <th>Browser result</th>
-              <th>Match</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <p class="caption">Small-system reference cases shared with the Python test suite conventions (N₂ counts, cylinder vs torus).</p>
+        <table class="data-table" id="vectorTable"><thead><tr><th>Vector</th><th>Expected</th><th>Browser</th><th>Match</th></tr></thead><tbody></tbody></table>
       </div>
     </section>
   </main>
-
   <footer class="footer">
-    <p>
-      <a href="https://github.com/TheBabelDragon/Spacetime">TheBabelDragon/Spacetime</a>
-      · Observatory UI is independent of the Python engine internals
-      · Mathematical conventions aligned with v0.1 geometry core
-    </p>
+    <p><a href="https://github.com/TheBabelDragon/Spacetime">TheBabelDragon/Spacetime</a> · Observatory UI independent of Python engine internals</p>
   </footer>
-
   <script src="js/cdt.js"></script>
   <script src="js/diffusion.js"></script>
+  <script src="js/ensemble.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
