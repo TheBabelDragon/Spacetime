@@ -38,7 +38,7 @@ def test_face_orientation():
     f0 = s.face(0)  # omit 0 → (1,2), sign (+1)
     assert f0.vertices == (1, 2)
     assert f0.orientation == 1
-    f1 = s.face(1)  # omit 1 → (0,2), sign (-1)
+    f1 = s.face(1)  # omit 1 → (0, 2), sign (-1)
     assert f1.vertices == (0, 2)
     assert f1.orientation == -1
 
@@ -48,6 +48,7 @@ def test_boundary_of_triangle():
     chain = boundary(s)
     # ∂[0,1,2] = [1,2] - [0,2] + [0,1]
     keys = {k.vertices: k.orientation * c for k, c in chain.items()}
+    # After canonicalisation all keys have orientation +1, coeff absorbs sign
     assert keys[(1, 2)] == 1
     assert keys[(0, 2)] == -1
     assert keys[(0, 1)] == 1
@@ -108,7 +109,7 @@ def test_serialization_roundtrip():
 
 def test_validate_complex_ok():
     c = SimplicialComplex(dimension=2)
-    c.add_simplex([0, 1, 2])
+    n.add_simplex([0, 1, 2])
     diag = validate_complex(c)
     assert diag.ok
     assert diag.boundary_square_ok
@@ -117,6 +118,7 @@ def test_validate_complex_ok():
 def test_tetrahedron_euler():
     """Boundary of a 3-simplex is an S² triangulation: χ = 2."""
     c = SimplicialComplex(dimension=2)
+    # Four triangular faces of the tetrahedron
     for face in ([0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]):
         c.add_simplex(face)
     assert simplex_counts(c)[0] == 4
