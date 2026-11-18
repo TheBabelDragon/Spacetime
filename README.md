@@ -132,13 +132,38 @@ DISCOVERY
 
 ---
 
+## Live Observatory (GitHub Pages)
+
+The browser-based Spacetime Observatory is published at:
+
+**https://thebabeldragon.github.io/Spacetime/**
+
+- Deployment target: GitHub Pages
+- Published source: `site/`
+- Workflow: `.github/workflows/pages.yml`
+- Production branch: `main`
+- Pull requests: build and validation only
+- Deployment: automatic after qualifying pushes to `main`
+- Manual deployment: GitHub Actions `workflow_dispatch`
+
+### Configuration
+
+Repository Settings → Pages → Build and deployment:
+
+**Source: GitHub Actions**
+
+A successful PR validation does **not** publish the site.
+Production deployment occurs after merging into `main` and
+successfully completing the Pages deployment job.
+
 ## Status
 
-**v0.1 — Domain establishment**
+**v0.1 — Discrete geometry core + Observatory shell**
 
 - Repository created and positioned in the Babel Dragon ecosystem.
-- Research charter and first experiment (2D CDT) defined.
-- Implementation of the discrete geometry core and spectral-dimension pipeline is the next concrete step.
+- Dimension-independent simplicial geometry core and 2D CDT model implemented.
+- Browser Observatory (`site/`) published via GitHub Pages after merge to `main`.
+- Next milestone: ensemble-based spectral dimension with reproducible experiment records (v0.2 research engine).
 
 ---
 
