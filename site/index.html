@@ -6,6 +6,7 @@
   <title>Spacetime Observatory — Babel Dragon</title>
   <meta name="description" content="Browser research interface for discrete geometry and 2D CDT. Browser previews are not Python results." />
   <link rel="stylesheet" href="css/observatory.css" />
+  <script>window.__SPACETIME_BUILD__ = { ui: "0.3.0", schema: "ensemble/v1" };</script>
 </head>
 <body>
   <div class="bg-grid" aria-hidden="true"></div>
@@ -14,7 +15,7 @@
       <span class="brand-mark" aria-hidden="true"></span>
       <div>
         <h1>Spacetime Observatory</h1>
-        <p class="tagline">Babel Dragon · Discrete geometry & 2D CDT research interface</p>
+        <p class="tagline">Babel Dragon · Discrete geometry &amp; 2D CDT research interface</p>
       </div>
     </div>
     <nav class="topnav">
@@ -25,12 +26,13 @@
       <a href="#validation">Validation</a>
       <a href="https://github.com/TheBabelDragon/Spacetime" target="_blank" rel="noopener">GitHub</a>
     </nav>
-    <div class="build-id" id="buildId">UI 0.3.0</div>
+    <div class="build-id" id="buildId" title="Build identity">UI 0.3.0</div>
   </header>
   <main>
     <section class="banner notice" role="note">
       <strong>Browser-side demonstration.</strong>
       Calculations here are previews. Python (<code>spacetime.ensemble</code>) is authoritative for published claims.
+      v0.3 ensemble class: <code>fixed_geometry_sampling_ensemble</code> (start-sampling only; not independent triangulations).
     </section>
     <section id="geometry" class="panel">
       <div class="panel-head"><h2>2D CDT Triangulation Explorer</h2><span class="badge">geometry</span></div>
@@ -74,15 +76,15 @@
       </div>
     </section>
     <section id="ensemble" class="panel">
-      <div class="panel-head"><h2>CDT Ensemble Engine</h2><span class="badge demo">browser preview · python authoritative</span></div>
+      <div class="panel-head"><h2>Fixed-Geometry Sampling Ensemble</h2><span class="badge demo">browser preview · python authoritative</span></div>
       <div class="layout-2">
         <div class="controls card">
           <h3>Ensemble configuration</h3>
-          <label>Geometries<input type="number" id="ensNGeom" min="1" max="200" value="20" /></label>
+          <label>Sampling runs<input type="number" id="ensNGeom" min="1" max="200" value="20" /></label>
           <label>Master seed<input type="number" id="ensSeed" min="0" value="2026" /></label>
           <label>σ<sub>max</sub><input type="number" id="ensSigma" min="2" max="100" value="20" /></label>
-          <label>Starts per geometry<input type="number" id="ensStarts" min="1" max="64" value="8" /></label>
-          <p class="caption">Uses N, T, periodic from Geometry. Flat CDT only in v0.3.</p>
+          <label>Starts per run<input type="number" id="ensStarts" min="1" max="64" value="8" /></label>
+          <p class="caption">Uses N, T, periodic from Geometry. Flat CDT only — same triangulation every run; independent start seeds. Not independent geometries.</p>
           <div class="btn-row">
             <button type="button" id="btnEnsemble" class="primary">Run ensemble</button>
             <button type="button" id="btnCancelEns" class="ghost">Cancel</button>
@@ -93,7 +95,7 @@
         </div>
         <div class="viz card">
           <canvas id="ensembleCanvas" width="720" height="360"></canvas>
-          <p class="caption">Ensemble mean D<sub>s</sub> with 95% band (browser preview).</p>
+          <p class="caption">Fixed-geometry sampling ensemble: mean D<sub>s</sub> ± 95% band (start-sampling variability only; not independent triangulations).</p>
         </div>
       </div>
     </section>
