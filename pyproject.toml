@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spacetime"
+version = "0.1.0"
+description = "Quantum Geometry & Gravity Research Engine — dimension-independent discrete geometry core with 2D CDT as first model"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "TheBabelDragon" }]
+keywords = [
+  "quantum-gravity",
+  "causal-dynamical-triangulations",
+  "simplicial-complex",
+  "discrete-geometry",
+  "babel-dragon",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Physics",
+  "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.urls]
+Homepage = "https://github.com/TheBabelDragon/Spacetime"
+Repository = "https://github.com/TheBabelDragon/Spacetime"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["spacetime*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q"
