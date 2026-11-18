@@ -1,5 +1,5 @@
 # Deploy Spacetime Observatory static content to GitHub Pages
-# Artifact root MUST be site/ so index.html is at the Pages root (not the repo root).
+# Artifact root MUST be site/ so index.html is at the Pages root.
 name: Deploy static content to Pages
 
 on:
@@ -33,6 +33,7 @@ jobs:
           test -f site/js/cdt.js
           test -f site/js/diffusion.js
           test -f site/js/app.js
+          test -f site/js/ensemble.js
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -40,7 +41,6 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Publish only the Observatory static root (index.html at artifact root)
           path: "site"
 
       - name: Deploy to GitHub Pages

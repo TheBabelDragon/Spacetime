@@ -24,3 +24,16 @@ jobs:
           pip install -e ".[dev]"
       - name: Test
         run: pytest -q
+
+      - name: Observatory asset smoke
+        run: |
+          test -f site/index.html
+          test -f site/css/observatory.css
+          test -f site/js/cdt.js
+          test -f site/js/diffusion.js
+          test -f site/js/app.js
+          test -f site/js/ensemble.js
+          node --check site/js/cdt.js
+          node --check site/js/diffusion.js
+          node --check site/js/ensemble.js
+          node --check site/js/app.js
