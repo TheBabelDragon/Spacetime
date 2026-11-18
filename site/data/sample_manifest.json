@@ -1,0 +1,24 @@
+{
+  "format": "spacetime-observatory-manifest/v1",
+  "source": "browser",
+  "model": "cdt2d",
+  "config": {
+    "n_spatial": 5,
+    "n_time": 3,
+    "periodic_time": false
+  },
+  "topology": "cylinder_S1xI",
+  "combinatorics": {
+    "n0": 15,
+    "n2": 20,
+    "note": "N2 = 2 * N * (T - 1) = 20"
+  },
+  "software": {
+    "ui": "spacetime-observatory",
+    "engine": "browser-js"
+  },
+  "validation": {
+    "status": "not_claimed",
+    "note": "Sample demo manifest. Not a Python Monte Carlo result."
+  }
+}
