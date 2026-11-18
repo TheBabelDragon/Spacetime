@@ -1,0 +1,12 @@
+{
+  "experiment_id": "cdt2d-smoke-001",
+  "model": "cdt2d",
+  "model_version": "0.1.0",
+  "n_spatial": 4,
+  "n_time": 3,
+  "periodic_time": false,
+  "seed": 1,
+  "n_sweeps": 0,
+  "kappa0": 0.0,
+  "kappa2": 1.0
+}
