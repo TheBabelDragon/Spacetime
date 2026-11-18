@@ -1,5 +1,6 @@
 /**
- * Browser-side CDT ensemble preview (NOT the authoritative Python engine).
+ * Browser-side fixed-geometry sampling ensemble preview (NOT Python authoritative).
+ * experiment_class: fixed_geometry_sampling_ensemble
  */
 (function (global) {
   "use strict";
@@ -46,7 +47,7 @@
   }
 
   function sampleVar(xs) {
-    if (xs.length < 2) return 0;
+    if (xs.length < 2) return null;
     var m = mean(xs);
     var s = 0;
     for (var i = 0; i < xs.length; i++) s += (xs[i] - m) * (xs[i] - m);
@@ -55,7 +56,7 @@
 
   function aggregate(seriesList) {
     var nSteps = seriesList[0] ? seriesList[0].length : 0;
-    var out = { mean: [], std: [], stderr: [], ci95_low: [], ci95_high: [], n_valid: [] };
+    var out = { mean: [], variance: [], std: [], stderr: [], ci95_low: [], ci95_high: [], n_valid: [] };
     for (var t = 0; t < nSteps; t++) {
       var vals = [];
       for (var g = 0; g < seriesList.length; g++) {
@@ -64,14 +65,21 @@
       }
       out.n_valid.push(vals.length);
       if (!vals.length) {
-        out.mean.push(null); out.std.push(null); out.stderr.push(null);
-        out.ci95_low.push(null); out.ci95_high.push(null);
+        out.mean.push(null); out.variance.push(null); out.std.push(null);
+        out.stderr.push(null); out.ci95_low.push(null); out.ci95_high.push(null);
         continue;
       }
       var m = mean(vals);
-      var sd = Math.sqrt(sampleVar(vals));
-      var se = sd / Math.sqrt(vals.length);
       out.mean.push(m);
+      if (vals.length < 2) {
+        out.variance.push(null); out.std.push(null); out.stderr.push(null);
+        out.ci95_low.push(null); out.ci95_high.push(null);
+        continue;
+      }
+      var varr = sampleVar(vals);
+      var sd = Math.sqrt(varr);
+      var se = sd / Math.sqrt(vals.length);
+      out.variance.push(varr);
       out.std.push(sd);
       out.stderr.push(se);
       out.ci95_low.push(m - 1.96 * se);
@@ -83,10 +91,7 @@
 
   function runEnsemble(cfg, onProgress, shouldCancel) {
     cfg = validateConfig(cfg);
-    var geos = [];
-    var pSeries = [];
-    var dsSeries = [];
-    var sigma = null;
+    var geos = [], pSeries = [], dsSeries = [], sigma = null;
     for (var i = 0; i < cfg.nGeometries; i++) {
       if (shouldCancel && shouldCancel()) throw new Error("cancelled");
       var seed = geometrySeed(cfg.masterSeed, i);
@@ -96,9 +101,8 @@
       var ds = SpacetimeDiffusion.spectralDimension(diff.sigma, diff.P);
       var dsVals = ds.Ds.map(function (x) { return isFinite(x) ? x : null; });
       geos.push({
-        geometry_index: i, seed: seed, n0: geom.n0, n2: geom.n2,
-        sigma: diff.sigma, P: diff.P, Ds_sigma: ds.sigma, Ds: dsVals,
-        n_starts_used: diff.n_starts,
+        geometry_index: i, run_index: i, seed: seed, n0: geom.n0, n2: geom.n2,
+        sigma: diff.sigma, P: diff.P, Ds_sigma: ds.sigma, Ds: dsVals, n_starts_used: diff.n_starts,
       });
       pSeries.push(diff.P);
       dsSeries.push(dsVals);
@@ -108,6 +112,7 @@
     return {
       format: "spacetime-ensemble-manifest/v1",
       source: "browser",
+      experiment_class: "fixed_geometry_sampling_ensemble",
       config: {
         n_spatial: cfg.nSpatial, n_time: cfg.nTime, periodic_time: !!cfg.periodicTime,
         n_geometries: cfg.nGeometries, master_seed: cfg.masterSeed,
@@ -117,14 +122,17 @@
       },
       notes: [
         "source=browser preview — Python is authoritative for published claims",
-        "graph=primal", "geometry_v0.3=flat_cylinder_or_torus",
-        "ci95=normal_approx 1.96*stderr",
+        "experiment_class=fixed_geometry_sampling_ensemble",
+        "variability=diffusion_start_sampling_across_runs — NOT independent triangulations",
+        "ci95=normal_approx_1.96_stderr (null when n_valid < 2)",
       ],
       sigma: sigma,
       P_ensemble: aggregate(pSeries),
       Ds_ensemble: aggregate(dsSeries),
       geometries: geos,
+      runs: geos,
       n_geometries: geos.length,
+      n_runs: geos.length,
     };
   }
 
@@ -147,10 +155,24 @@
     return lines.join("\n");
   }
 
+  var KNOWN_VECTORS = {
+    seed0: [1144304738, 1416247, 958946056, 627933444, 2007157716],
+    seed42: [2581720956, 1925393290, 3661312704, 2876485805, 750819978],
+  };
+
+  function mulberry32Vector(seed, n) {
+    var r = new Mulberry32(seed);
+    var out = [];
+    for (var i = 0; i < n; i++) out.push(r.nextU32());
+    return out;
+  }
+
   global.SpacetimeEnsemble = {
     SCHEMA_VERSION: SCHEMA_VERSION,
     ALGORITHM_VERSION: ALGORITHM_VERSION,
     ENGINE_VERSION: ENGINE_VERSION,
+    KNOWN_VECTORS: KNOWN_VECTORS,
+    mulberry32Vector: mulberry32Vector,
     geometrySeed: geometrySeed,
     runEnsemble: runEnsemble,
     csvP: csvP,
